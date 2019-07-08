@@ -31,18 +31,18 @@ app.layout = html.Div(children=[
         date=str(dt.now())
     ),
 
-    html.H5(
-        children='File Type'
-    ),
+    # html.H5(
+    #     children='File Type'
+    # )
 
-    dcc.Dropdown(
-        id='drd-filetype',
-        options=[
-            {'label':'Data File','value':'ROWS'},
-            {'label':'Log File','value':'LOG'}
-        ],
-        value='ROWS'
-    ),
+    # dcc.Dropdown(
+    #     id='drd-filetype',
+    #     options=[
+    #         {'label':'Data File','value':'ROWS'},
+    #         {'label':'Log File','value':'LOG'}
+    #     ],
+    #     value='ROWS'
+    # ),
 
     dcc.Graph(
         id='databasesize',
@@ -52,10 +52,11 @@ app.layout = html.Div(children=[
 
 @app.callback(
     Output(component_id='databasesize',component_property='figure'),
-    [Input(component_id='report-date', component_property='date'),
-    Input(component_id='drd-filetype',component_property='value')]
+    [Input(component_id='report-date', component_property='date')
+    # ,Input(component_id='drd-filetype',component_property='value')
+    ]
 )
-def update_value(date,type):
+def update_chart(date):
     try:
         conn_str = (
                 r"Driver={SQL Server Native Client 11.0};"
@@ -64,20 +65,51 @@ def update_value(date,type):
                 r"Trusted_Connection=yes;"
                 )
         conn = pyodbc.connect(conn_str)
-        
-        df = pd.read_sql("EXEC dbo.ReportDatabaseFileSizes ? , ?",conn,params=(date,type))
-        X = df['DatabaseName']
-        Y = df['FileSizeInMbs']
-        print(list(X))
-        print(list(Y))
+        log = 'LOG'
+        rows = 'ROWS'
+        dfRows = pd.read_sql("EXEC dbo.ReportDatabaseFileSizes ? , ?",conn,params=(date,rows))
+        XRows = dfRows['DatabaseName']
+        YRows = dfRows['FileSizeInMbs']
+        dfLog = pd.read_sql("EXEC dbo.ReportDatabaseFileSizes ? , ?",conn,params=(date,log))
+        XLog = dfLog['DatabaseName']
+        YLog = dfLog['FileSizeInMbs']
+
         return {
-            'data':[go.Bar(
-                x=list(X),
-                y=list(Y)
-            )],
+            'data':[
+                go.Bar(
+                    x=list(XRows),
+                    y=list(YRows),
+                    name='Data File'
+                    ),
+                go.Bar(
+                    x=list(XLog),
+                    y=list(YLog),
+                    name='Log File'
+                ) 
+            ],
             'layout':go.Layout(
-                xaxis=dict(range=[min(X),max(X)]),
-                yaxis=dict(range=[min(Y),max(Y)])
+                xaxis=go.layout.XAxis(
+                    title=go.layout.xaxis.Title(
+                        text='Database',
+                        font=dict(
+                            family='Courier New, monospace',
+                            size=18,
+                            color='#7f7f7f'
+                        )
+                    )
+                ),
+                yaxis=go.layout.YAxis(
+                    title=go.layout.yaxis.Title(
+                        text='File Size (Mbs)',
+                        font=dict(
+                            family='Courier New, monospace',
+                            size=18,
+                            color='#7f7f7f'
+                        )
+                    )
+                ),
+                title='Database File Size Statistic.',
+                barmode='group'
             )
         }
         
